@@ -1,0 +1,10 @@
+[package]
+name = "tiny-gto"
+version = "0.1.0"
+edition = "2024"
+authors = ["rintarop"]
+description = "Kuhn Poker GTO solver using Counterfactual Regret Minimization (CFR)"
+license = "MIT"
+repository = "https://github.com/rintarop/tiny-gto"
+
+[dependencies]
