@@ -127,44 +127,49 @@ impl GameState {
     }
 }
 
-#[test]
-fn test_action_display() {
-    assert_eq!(Action::Check.to_string(), "Check");
-    assert_eq!(Action::Bet.to_string(), "Bet");
-    assert_eq!(Action::Call.to_string(), "Call");
-    assert_eq!(Action::Fold.to_string(), "Fold");
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn test_player_other() {
-    assert_eq!(Player::Player1.other(), Player::Player2);
-    assert_eq!(Player::Player2.other(), Player::Player1);
-}
+    #[test]
+    fn test_action_display() {
+        assert_eq!(Action::Check.to_string(), "Check");
+        assert_eq!(Action::Bet.to_string(), "Bet");
+        assert_eq!(Action::Call.to_string(), "Call");
+        assert_eq!(Action::Fold.to_string(), "Fold");
+    }
 
-#[test]
-fn test_history_add_to_string() {
-    let state = GameState::new();
-    assert_eq!(state.legal_actions(), vec![Action::Check, Action::Bet]);
+    #[test]
+    fn test_player_other() {
+        assert_eq!(Player::Player1.other(), Player::Player2);
+        assert_eq!(Player::Player2.other(), Player::Player1);
+    }
 
-    let state = state.next_state(Action::Check);
-    assert_eq!(state.legal_actions(), vec![Action::Check, Action::Bet]);
+    #[test]
+    fn test_history_add_to_string() {
+        let state = GameState::new();
+        assert_eq!(state.legal_actions(), vec![Action::Check, Action::Bet]);
 
-    let state = state.next_state(Action::Bet);
-    assert_eq!(state.legal_actions(), vec![Action::Call, Action::Fold]);
-}
+        let state = state.next_state(Action::Check);
+        assert_eq!(state.legal_actions(), vec![Action::Check, Action::Bet]);
 
-#[test]
-fn test_game_state_terminal() {
-    let state = GameState::new()
-        .next_state(Action::Check)
-        .next_state(Action::Check);
-    assert!(state.terminal);
+        let state = state.next_state(Action::Bet);
+        assert_eq!(state.legal_actions(), vec![Action::Call, Action::Fold]);
+    }
 
-    let state = GameState::new()
-        .next_state(Action::Bet)
-        .next_state(Action::Call);
-    assert!(state.terminal);
+    #[test]
+    fn test_game_state_terminal() {
+        let state = GameState::new()
+            .next_state(Action::Check)
+            .next_state(Action::Check);
+        assert!(state.terminal);
 
+        let state = GameState::new()
+            .next_state(Action::Bet)
+            .next_state(Action::Call);
+        assert!(state.terminal);
+
+    }
 }
 
 pub fn main() {
