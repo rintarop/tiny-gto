@@ -171,17 +171,3 @@ mod tests {
 
     }
 }
-
-pub fn main() {
-    let state = GameState::new();
-
-    println!("Initial State: {:?}", state.history.to_string());
-    println!("Player: {:?}", state.current_player);
-    println!("Legal Actions: {:?}", state.legal_actions());
-
-    let next = state.next_state(Action::Bet);
-    println!("\n→ After Bet:");
-    println!("History: {}", next.history.to_string());
-    println!("Player: {:?}", next.current_player);
-    println!("Legal actions: {:?}", next.legal_actions());
-}
