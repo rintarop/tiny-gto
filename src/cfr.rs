@@ -177,12 +177,16 @@ pub fn get_payoff(card1: Card, card2: Card, history: &str) -> i32 {
 /// card1: プレイヤー1のカード
 /// card2: プレイヤー2のカード
 /// info_sets: 情報集合のマップ（学習データの蓄積先）
+/// reach_prob1: プレイヤー1の到達確率
+/// reach_prob2: プレイヤー2の到達確率
 /// 返り値: プレイヤー1から見た期待値
 pub fn cfr(
     state: &GameState,
     card1: Card,
     card2: Card,
     info_sets: &mut InfoSetMap,
+    reach_prob1: f64,
+    reach_prob2: f64,
 ) -> f64 {
     let history = state.history.to_string();
     
@@ -216,7 +220,15 @@ pub fn cfr(
     
     for action in &actions {
         let next_state = state.next_state(*action);
-        let action_value = cfr(&next_state, card1, card2, info_sets);
+        
+        // 次の状態での到達確率を計算
+        let action_prob = strategy.get(action).unwrap();
+        let (next_reach1, next_reach2) = match state.current_player {
+            crate::kuhn::Player::Player1 => (reach_prob1 * action_prob, reach_prob2),
+            crate::kuhn::Player::Player2 => (reach_prob1, reach_prob2 * action_prob),
+        };
+        
+        let action_value = cfr(&next_state, card1, card2, info_sets, next_reach1, next_reach2);
         
         // プレイヤー2の価値は符号を反転
         let value = match state.current_player {
@@ -225,20 +237,31 @@ pub fn cfr(
         };
         
         action_values.insert(*action, value);
-        node_value += strategy.get(action).unwrap() * value;
+        node_value += action_prob * value;
     }
     
-    // リグレットと戦略を更新
+    // リグレットと戦略を更新（リーチ確率で重み付け）
     let node = info_sets.get_mut(&info_set_key).unwrap();
     for action in &actions {
         let action_value = *action_values.get(action).unwrap();
         let regret = action_value - node_value;
         
-        // リグレット累積
-        *node.regret_sum.get_mut(action).unwrap() += regret;
+        // 相手の到達確率でリグレットを重み付け
+        let opponent_reach = match state.current_player {
+            crate::kuhn::Player::Player1 => reach_prob2,
+            crate::kuhn::Player::Player2 => reach_prob1,
+        };
         
-        // 戦略累積（現在の戦略を加算）
-        *node.strategy_sum.get_mut(action).unwrap() += *strategy.get(action).unwrap();
+        // リグレット累積（相手の到達確率で重み付け）
+        *node.regret_sum.get_mut(action).unwrap() += regret * opponent_reach;
+        
+        // 戦略累積（自分の到達確率で重み付け）
+        let my_reach = match state.current_player {
+            crate::kuhn::Player::Player1 => reach_prob1,
+            crate::kuhn::Player::Player2 => reach_prob2,
+        };
+        let current_strategy_prob = strategy.get(action).unwrap();
+        *node.strategy_sum.get_mut(action).unwrap() += current_strategy_prob * my_reach;
     }
     
     // プレイヤー2の場合は符号を反転して返す
@@ -260,7 +283,7 @@ pub fn train(iterations: usize) -> InfoSetMap {
         // 全てのカード配布パターンについてCFRを実行
         for (card1, card2) in deal_cards() {
             let state = GameState::new();
-            cfr(&state, card1, card2, &mut info_sets);
+            cfr(&state, card1, card2, &mut info_sets, 1.0, 1.0);
         }
         
         // 進捗表示（10%ごと）
@@ -306,8 +329,7 @@ pub fn print_strategy(info_sets: &InfoSetMap) {
 pub fn main() {
     println!("Training Kuhn Poker GTO strategy...\n");
     
-    // 10,000回イテレーション
-    let iterations = 10_000;
+    let iterations = 100_000;
     let info_sets = train(iterations);
     
     println!("\nTraining complete!");
@@ -448,7 +470,7 @@ mod tests {
         let mut info_sets = InfoSetMap::new();
         
         // J vs Qでゲームを実行
-        let _value = cfr(&state, Card::Jack, Card::Queen, &mut info_sets);
+        let _value = cfr(&state, Card::Jack, Card::Queen, &mut info_sets, 1.0, 1.0);
         
         // 情報集合が作成されているはず
         assert!(info_sets.len() > 0);
@@ -466,7 +488,7 @@ mod tests {
         for _ in 0..10 {
             for (card1, card2) in deal_cards() {
                 let state = GameState::new();
-                cfr(&state, card1, card2, &mut info_sets);
+                cfr(&state, card1, card2, &mut info_sets, 1.0, 1.0);
             }
         }
         
